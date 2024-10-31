@@ -10,12 +10,16 @@ def dfs(graph, start, goal):
             continue
 
         visited.append(node)
-
         if node == goal:
             return path
 
-        for neighbor in graph.get(node, []):
-            stack.append(path + [neighbor])
+      
+        adjacent_nodes = graph.get(node, [])
+        for node2 in adjacent_nodes:
+          
+            new_path = path.copy()
+            new_path.append(node2)
+            stack.append(new_path)
 
     return None
 
@@ -36,11 +40,15 @@ def bfs(graph, start, goal):
         if node == goal:
             return path
 
-        for neighbor in graph.get(node, []):
-            queue.append(path + [neighbor])
-
+        adjacent_nodes = graph.get(node, [])
+        
+        for node2 in adjacent_nodes:
+           
+            new_path = path.copy()
+            new_path.append(node2)
+      
+            queue.append(new_path)
     return None
-
 
 graph = {
     'S': ['A', 'D'],
