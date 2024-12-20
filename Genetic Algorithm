@@ -1,0 +1,91 @@
+from random import choices, randint, randrange, random
+from typing import List, Optional, Callable, Tuple
+
+Genome = List[int]
+Population = List[Genome]
+PopulateFunc = Callable[[], Population]
+FitnessFunc = Callable[[Genome], int]
+SelectionFunc = Callable[[Population, FitnessFunc], Tuple[Genome, Genome]]
+CrossoverFunc = Callable[[Genome, Genome], Tuple[Genome, Genome]]
+MutationFunc = Callable[[Genome], Genome]
+PrinterFunc = Callable[[Population, int, FitnessFunc], None]
+
+def create_genome(length: int) -> Genome:
+    return choices([0, 1], k=length)
+
+def create_population(size: int, genome_length: int) -> Population:
+    return [create_genome(genome_length) for _ in range(size)]
+
+def crossover(a: Genome, b: Genome) -> Tuple[Genome, Genome]:
+    if len(a) != len(b):
+        raise ValueError("Genomes must have the same length")
+
+    if len(a) < 2:
+        return a, b
+
+    point = randint(1, len(a) - 1)
+    return a[:point] + b[point:], b[:point] + a[point:]
+
+def mutate(genome: Genome, attempts: int = 1, chance: float = 0.5) -> Genome:
+    for _ in range(attempts):
+        idx = randrange(len(genome))
+        genome[idx] = genome[idx] if random() > chance else 1 - genome[idx]
+    return genome
+
+def evaluate_population(population: Population, fitness_func: FitnessFunc) -> int:
+    return sum(fitness_func(g) for g in population)
+
+def choose_parents(population: Population, fitness_func: FitnessFunc) -> Tuple[Genome, Genome]:
+    return choices(
+        population=population,
+        weights=[fitness_func(g) for g in population],
+        k=2
+    )
+
+def rank_population(population: Population, fitness_func: FitnessFunc) -> Population:
+    return sorted(population, key=fitness_func, reverse=True)
+
+def genome_to_text(genome: Genome) -> str:
+    return ''.join(map(str, genome))
+
+def display_stats(population: Population, generation: int, fitness_func: FitnessFunc):
+    print(f"GENERATION {generation:02}")
+    print("-" * 12)
+    print("Population: [" + ", ".join(genome_to_text(g) for g in population) + "]")
+    print(f"Avg. Fitness: {evaluate_population(population, fitness_func) / len(population):.2f}")
+    sorted_pop = rank_population(population, fitness_func)
+    print(f"Best: {genome_to_text(sorted_pop[0])} ({fitness_func(sorted_pop[0]):.2f})")
+    print(f"Worst: {genome_to_text(sorted_pop[-1])} ({fitness_func(sorted_pop[-1]):.2f})")
+    print()
+
+def genetic_algorithm(
+        populate_func: PopulateFunc,
+        fitness_func: FitnessFunc,
+        fitness_target: int,
+        select_func: SelectionFunc = choose_parents,
+        crossover_func: CrossoverFunc = crossover,
+        mutate_func: MutationFunc = mutate,
+        max_generations: int = 100,
+        logger: Optional[PrinterFunc] = None) -> Tuple[Population, int]:
+
+    population = populate_func()
+
+    for gen in range(max_generations):
+        population = rank_population(population, fitness_func)
+
+        if logger:
+            logger(population, gen, fitness_func)
+
+        if fitness_func(population[0]) >= fitness_target:
+            break
+
+        next_gen = population[:2]
+
+        for _ in range(len(population) // 2 - 1):
+            parents = select_func(population, fitness_func)
+            child1, child2 = crossover_func(parents[0], parents[1])
+            next_gen.extend([mutate_func(child1), mutate_func(child2)])
+
+        population = next_gen
+
+    return population, gen
